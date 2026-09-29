@@ -1,0 +1,143 @@
+name: Cleanup old workflow runs, artifacts, and caches
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview only; do not delete anything
+        required: false
+        default: true
+        type: boolean
+      retention_days:
+        description: Delete runs and artifacts older than this many days
+        required: false
+        default: '30'
+        type: string
+      keep_minimum_runs:
+        description: Preserve this many newest runs
+        required: false
+        default: '10'
+        type: string
+      max_deletions:
+        description: Maximum items deleted in one execution
+        required: false
+        default: '100'
+        type: string
+      delete_caches:
+        description: Also delete old Actions caches
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: gh-cleaner-${{ github.repository }}
+  cancel-in-progress: false
+
+env:
+  # Scheduled executions are always previews; a maintainer must manually choose destructive mode.
+  DRY_RUN: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run }}
+  RETENTION_DAYS: ${{ inputs.retention_days || '30' }}
+  KEEP_MINIMUM_RUNS: ${{ inputs.keep_minimum_runs || '10' }}
+  MAX_DELETIONS: ${{ inputs.max_deletions || '100' }}
+  DELETE_CACHES: ${{ github.event_name == 'workflow_dispatch' && inputs.delete_caches || 'false' }}
+  PROTECT_DEFAULT_BRANCH_SUCCESS: 'true'
+  EXCLUDE_WORKFLOW: 'Release'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check Actions permissions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          metadata=$(gh api "repos/$REPO")
+          echo "Repository: $(jq -r '.full_name' <<<"$metadata")"
+          permissions=$(jq -r '.permissions // {}' <<<"$metadata")
+          echo "Token-visible repository permissions: $permissions"
+          if [[ "${DRY_RUN}" != "true" && "$(jq -r '.permissions // {} | length' <<<"$metadata")" == "0" ]]; then
+            echo "Warning: repository metadata did not expose token permissions; Actions write access will be verified by the delete calls." >&2
+          fi
+
+      - name: Scan and clean workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          cutoff=$(date -u -d "$RETENTION_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)
+          mapfile -t ids < <(gh api "repos/$REPO/actions/runs?per_page=100" --paginate --slurp | \
+            jq -r --arg cutoff "$cutoff" --arg default "$DEFAULT_BRANCH" --arg excluded "$EXCLUDE_WORKFLOW" \
+              --argjson protect "$([[ "$PROTECT_DEFAULT_BRANCH_SUCCESS" == true ]] && echo true || echo false)" \
+              '.[].workflow_runs[] | select(.status == "completed" and .created_at < $cutoff) | select(($protect | not) or .head_branch != $default or .conclusion != "success") | select($excluded == "" or ((.name // "") | contains($excluded) | not)) | .id')
+          if (( ${#ids[@]} > KEEP_MINIMUM_RUNS )); then ids=("${ids[@]:KEEP_MINIMUM_RUNS}"); else ids=(); fi
+          count=0; skipped=0
+          for id in "${ids[@]}"; do
+            if (( count >= MAX_DELETIONS )); then echo "Safety cap reached: $MAX_DELETIONS"; break; fi
+            if [[ "$DRY_RUN" == true ]]; then echo "[dry-run] would delete workflow run $id"; ((skipped+=1)) || true
+            elif gh api -X DELETE "repos/$REPO/actions/runs/$id"; then echo "Deleted workflow run $id"; ((count+=1)) || true
+            else echo "Failed workflow run $id; continuing" >&2; fi
+          done
+          echo "Runs deleted: $count; previewed/skipped: $skipped"
+          {
+            echo '## Workflow-run cleanup'
+            echo "- Dry run: **$DRY_RUN**"
+            echo "- Cutoff: **$cutoff**"
+            echo "- Deleted: **$count**"
+            echo "- Previewed/skipped: **$skipped**"
+          } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+
+      - name: Scan and clean artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cutoff=$(date -u -d "$RETENTION_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)
+          mapfile -t ids < <(gh api "repos/$REPO/actions/artifacts?per_page=100" --paginate --slurp | jq -r --arg cutoff "$cutoff" '.[].artifacts[] | select(.created_at < $cutoff) | .id')
+          count=0; skipped=0
+          for id in "${ids[@]}"; do
+            if (( count >= MAX_DELETIONS )); then echo "Safety cap reached: $MAX_DELETIONS"; break; fi
+            if [[ "$DRY_RUN" == true ]]; then echo "[dry-run] would delete artifact $id"; ((skipped+=1)) || true
+            elif gh api -X DELETE "repos/$REPO/actions/artifacts/$id"; then echo "Deleted artifact $id"; ((count+=1)) || true
+            else echo "Failed artifact $id; continuing" >&2; fi
+          done
+          echo "Artifacts deleted: $count; previewed/skipped: $skipped"
+          {
+            echo '## Artifact cleanup'
+            echo "- Deleted: **$count**"
+            echo "- Previewed/skipped: **$skipped**"
+          } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+
+      - name: Scan and clean Actions caches (opt-in)
+        if: env.DELETE_CACHES == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cutoff=$(date -u -d "$RETENTION_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)
+          mapfile -t ids < <(gh api "repos/$REPO/actions/caches?per_page=100" --paginate --slurp | jq -r --arg cutoff "$cutoff" '.[].actions_caches[] | select(.last_accessed_at < $cutoff) | .id')
+          count=0; skipped=0
+          for id in "${ids[@]}"; do
+            if (( count >= MAX_DELETIONS )); then echo "Safety cap reached: $MAX_DELETIONS"; break; fi
+            if [[ "$DRY_RUN" == true ]]; then echo "[dry-run] would delete cache $id"; ((skipped+=1)) || true
+            elif gh api -X DELETE "repos/$REPO/actions/caches/$id"; then echo "Deleted cache $id"; ((count+=1)) || true
+            else echo "Failed cache $id; continuing" >&2; fi
+          done
+          echo "Caches deleted: $count; previewed/skipped: $skipped"
+          {
+            echo '## Cache cleanup'
+            echo "- Deleted: **$count**"
+            echo "- Previewed/skipped: **$skipped**"
+          } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"

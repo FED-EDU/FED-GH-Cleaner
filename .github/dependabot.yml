@@ -1,0 +1,23 @@
+version: 2
+updates:
+  # Keep JavaScript tooling current.
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 10
+    labels: [dependencies, npm]
+  # Keep Python dependencies current.
+  - package-ecosystem: pip
+    directory: /
+    schedule: { interval: weekly }
+    labels: [dependencies, python]
+  # Keep workflow actions current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    labels: [dependencies, ci]
+  # Keep container dependencies current.
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly }
+    labels: [dependencies, docker]

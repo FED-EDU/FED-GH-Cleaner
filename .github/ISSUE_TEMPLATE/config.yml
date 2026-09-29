@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discord Community
+    url: https://discord.gg/Jm4XStx4Pf
+    about: Ask questions here
+  - name: Security Report
+    url: mailto:security@fedpromptly.com
+    about: Report vulnerabilities privately

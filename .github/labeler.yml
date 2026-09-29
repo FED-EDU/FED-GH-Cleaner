@@ -1,0 +1,12 @@
+scripts:
+  - changed-files: { any-glob-to-any-file: scripts/** }
+workflows:
+  - changed-files: { any-glob-to-any-file: .github/workflows/** }
+docs:
+  - changed-files: { any-glob-to-any-file: [docs/**, "*.md"] }
+python:
+  - changed-files: { any-glob-to-any-file: [src/**/*.py, tests/**/*.py] }
+bash:
+  - changed-files: { any-glob-to-any-file: scripts/**/*.sh }
+config:
+  - changed-files: { any-glob-to-any-file: [pyproject.toml, requirements.txt] }

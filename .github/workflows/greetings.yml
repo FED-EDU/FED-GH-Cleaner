@@ -1,0 +1,15 @@
+name: Greetings
+on:
+  pull_request: {types: [opened]}
+  issues: {types: [opened]}
+jobs:
+  greeting:
+    runs-on: ubuntu-latest
+    permissions: {issues: write, pull-requests: write}
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: Thanks for opening your first issue! Please read CONTRIBUTING.md.
+          pr-message: Thanks for your first pull request! Please complete the template.
+

@@ -1,0 +1,7 @@
+# Reviewers automatically requested for matching files.
+* @FED-OS
+.github/ @FED-OS
+docs/ @FED-OS
+src/ @FED-OS
+scripts/ @FED-OS
+tests/ @FED-OS
