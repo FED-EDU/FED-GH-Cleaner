@@ -1,0 +1,4 @@
+/* styles.css is the design system; this file contains only page-level adjustments. */
+.site-header nav { letter-spacing: .01em; }
+.hero p { max-width: 680px; }
+.site-footer a:hover { color: var(--text); }

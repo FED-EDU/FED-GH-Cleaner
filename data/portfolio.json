@@ -1,0 +1,33 @@
+[
+  {
+    "name": "FED-TEMPLE",
+    "description": "Community home for open software.",
+    "tech": [
+      "HTML",
+      "CSS"
+    ],
+    "repo": "https://github.com/FED-OS",
+    "icon": "\u2302"
+  },
+  {
+    "name": "Transcribe",
+    "description": "Browser-native transcription experiments.",
+    "tech": [
+      "Python",
+      "AI"
+    ],
+    "repo": "#",
+    "icon": "\u25cc"
+  },
+  {
+    "name": "gh-cleaner",
+    "description": "Safe cleanup for old GitHub Actions history.",
+    "tech": [
+      "Bash",
+      "Python",
+      "GitHub Actions"
+    ],
+    "repo": "https://github.com/FED-OS/gh-cleaner",
+    "icon": "\u2318"
+  }
+]
