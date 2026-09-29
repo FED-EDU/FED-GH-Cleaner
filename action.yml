@@ -1,0 +1,65 @@
+name: gh-cleaner
+description: Delete old GitHub workflow runs and artifacts with a tested Python CLI.
+author: FED-OS
+inputs:
+  token:
+    description: "GitHub token with actions: write"
+    required: true
+  repository:
+    description: owner/name repository
+    required: false
+    default: ${{ github.repository }}
+  dry-run:
+    description: Preview without deleting
+    required: false
+    default: 'true'
+  keep-latest:
+    description: Number of newest items to preserve
+    required: false
+    default: '10'
+  older-than:
+    description: Age threshold
+    required: false
+    default: 30d
+  workflow:
+    description: Workflow filename or ID
+    required: false
+  status:
+    description: Workflow status
+    required: false
+  branch:
+    description: Branch filter
+    required: false
+  delete-runs:
+    required: false
+    default: 'true'
+  delete-artifacts:
+    required: false
+    default: 'true'
+  artifact-name:
+    required: false
+  delete-caches:
+    description: Delete old Actions caches
+    required: false
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+      run: |
+        python -m pip install -r "$GITHUB_ACTION_PATH/requirements.txt"
+        args=(--token "$GITHUB_TOKEN" --repo "${{ inputs.repository }}" --keep-latest "${{ inputs.keep-latest }}" --older-than "${{ inputs.older-than }}")
+        [[ "${{ inputs.dry-run }}" == true ]] && args+=(--dry-run) || args+=(--no-dry-run --yes)
+        [[ "${{ inputs.workflow }}" ]] && args+=(--workflow "${{ inputs.workflow }}")
+        [[ "${{ inputs.status }}" ]] && args+=(--status "${{ inputs.status }}")
+        [[ "${{ inputs.branch }}" ]] && args+=(--branch "${{ inputs.branch }}")
+        [[ "${{ inputs.delete-runs }}" == false ]] && args+=(--no-delete-runs)
+        [[ "${{ inputs.delete-artifacts }}" == false ]] && args+=(--no-delete-artifacts)
+        [[ "${{ inputs.artifact-name }}" ]] && args+=(--artifact-name "${{ inputs.artifact-name }}")
+        [[ "${{ inputs.delete-caches }}" == true ]] && args+=(--delete-caches)
+        PYTHONPATH="$GITHUB_ACTION_PATH/src" python -m gh_cleaner.cli "${args[@]}"

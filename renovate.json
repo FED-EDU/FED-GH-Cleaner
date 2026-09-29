@@ -1,0 +1,27 @@
+{
+  "extends": [
+    "config:base",
+    ":semanticCommits"
+  ],
+  "schedule": [
+    "before 5am on monday"
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "github-actions"
+    },
+    {
+      "matchManagers": [
+        "pip"
+      ],
+      "groupName": "python-dependencies"
+    }
+  ],
+  "automerge": false
+}
