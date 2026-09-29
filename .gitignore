@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.Python
+build/
+dist/
+.eggs/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+coverage.xml
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+# Node and site tooling
+node_modules/
+.npm/
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store
+# Secrets and local files
+.env
+.env.*
+!.env.example
+credentials.json
+config.local.yml
+# Logs and scratch
+*.log
+tmp/
+scratch/
