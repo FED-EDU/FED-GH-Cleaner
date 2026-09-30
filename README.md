@@ -1,4 +1,4 @@
-# gh-cleaner
+# Github Actions-cleaner
 
 A self-contained tool for safely scanning and deleting **old GitHub Actions workflow runs, artifacts, and optional caches**. The primary automation is a plain GitHub Actions workflow that uses GitHub's preinstalled `gh` CLI and API. It does **not** delete workflow files in `.github/workflows/`.
 
